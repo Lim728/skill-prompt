@@ -1,0 +1,6 @@
+services:
+  skill-prompt:
+    build: .
+    ports:
+      - "7619:8000"
+    restart: unless-stopped

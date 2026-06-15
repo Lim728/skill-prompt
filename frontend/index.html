@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Prompt</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <style>
+        :root, [data-theme="dark"] {
+            --bg-body: #111827;
+            --bg-card: #1f2937;
+            --bg-input: #030712;
+            --border: #374151;
+            --border-hover: #6b7280;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #4b5563;
+            --text-accent: #60a5fa;
+            --text-success: #34d399;
+            --gear-color: #9ca3af;
+            --gear-hover: #60a5fa;
+            --overlay-bg: rgba(0,0,0,0.5);
+            --shadow: 0 10px 15px -3px rgba(0,0,0,0.4);
+        }
+        [data-theme="light"] {
+            --bg-body: #f9fafb;
+            --bg-card: #ffffff;
+            --bg-input: #f3f4f6;
+            --border: #d1d5db;
+            --border-hover: #9ca3af;
+            --text-primary: #111827;
+            --text-secondary: #374151;
+            --text-muted: #9ca3af;
+            --text-accent: #2563eb;
+            --text-success: #059669;
+            --gear-color: #6b7280;
+            --gear-hover: #2563eb;
+            --overlay-bg: rgba(0,0,0,0.3);
+            --shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2.5rem 1rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        body.bg-custom {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+        }
+        body.bg-custom::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: var(--bg-body);
+            opacity: 0.85;
+            z-index: 0;
+        }
+        body.bg-custom > * { position: relative; z-index: 1; }
+        .settings-overlay { transition: opacity 0.25s ease; }
+        .settings-panel { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+        .settings-overlay.open { opacity: 1; pointer-events: auto; }
+        .settings-overlay:not(.open) { opacity: 0; pointer-events: none; }
+        .settings-panel.open { transform: translateX(0); }
+        .settings-panel:not(.open) { transform: translateX(100%); }
+        .gear-spin:hover { animation: spin 0.6s ease-in-out; }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(90deg)} }
+        .theme-btn { transition: all 0.15s ease; }
+        .theme-btn.active { border-color: #3b82f6; background: rgba(59,130,246,0.15); }
+    </style>
+</head>
+<body id="appBody">
+
+    <button onclick="openSettings()" style="position:fixed;top:1.25rem;right:1.25rem;z-index:30;width:2.5rem;height:2.5rem;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;" onmouseenter="this.style.borderColor='var(--gear-hover)'" onmouseleave="this.style.borderColor='var(--border)'">
+        <svg class="gear-spin" style="width:1.25rem;height:1.25rem;color:var(--gear-color);transition:color 0.2s;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"/>
+            <circle cx="12" cy="12" r="3"/>
+        </svg>
+    </button>
+
+    <div id="settingsOverlay" class="settings-overlay" style="position:fixed;inset:0;z-index:40;background:var(--overlay-bg);backdrop-filter:blur(4px);" onclick="closeSettings(event)">
+        <div id="settingsPanel" class="settings-panel" style="position:absolute;right:0;top:0;height:100%;width:100%;max-width:28rem;background:var(--bg-card);border-left:1px solid var(--border);box-shadow:var(--shadow);overflow-y:auto;" onclick="event.stopPropagation()">
+            <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.5rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <h2 style="font-size:1.125rem;font-weight:700;color:var(--text-accent);display:flex;align-items:center;gap:0.5rem;">
+                        <svg style="width:1.25rem;height:1.25rem;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span data-i18n="settings">设置</span>
+                    </h2>
+                    <button onclick="closeSettings()" style="width:2rem;height:2rem;border-radius:0.5rem;background:var(--bg-input);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);transition:all 0.2s;" onmouseenter="this.style.color='var(--text-primary)'" onmouseleave="this.style.color='var(--text-secondary)'">
+                        <svg style="width:0.875rem;height:0.875rem;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- 语言 -->
+                <div>
+                    <label data-i18n="lang_label" style="display:block;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">语言</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                        <button onclick="setLang('zh')" id="langZh" class="theme-btn active" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.625rem 0;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-input);cursor:pointer;transition:all 0.15s;font-size:0.8125rem;color:var(--text-secondary);">
+                            <span>🇨🇳</span> 中文
+                        </button>
+                        <button onclick="setLang('en')" id="langEn" class="theme-btn" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.625rem 0;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-input);cursor:pointer;transition:all 0.15s;font-size:0.8125rem;color:var(--text-secondary);">
+                            <span>🇺🇸</span> English
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 主题 -->
+                <div>
+                    <label data-i18n="theme_label" style="display:block;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">主题外观</label>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
+                        <button onclick="setTheme('dark')" id="themeDark" class="theme-btn active" style="display:flex;flex-direction:column;align-items:center;gap:0.375rem;padding:0.75rem 0;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-input);cursor:pointer;transition:all 0.15s;">
+                            <svg style="width:1.25rem;height:1.25rem;color:#fcd34d;" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+                            <span data-i18n="theme_dark" style="font-size:0.75rem;color:var(--text-secondary);">深色</span>
+                        </button>
+                        <button onclick="setTheme('light')" id="themeLight" class="theme-btn" style="display:flex;flex-direction:column;align-items:center;gap:0.375rem;padding:0.75rem 0;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-input);cursor:pointer;transition:all 0.15s;">
+                            <svg style="width:1.25rem;height:1.25rem;color:#facc15;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
+                            <span data-i18n="theme_light" style="font-size:0.75rem;color:var(--text-secondary);">浅色</span>
+                        </button>
+                        <button onclick="setTheme('system')" id="themeSystem" class="theme-btn" style="display:flex;flex-direction:column;align-items:center;gap:0.375rem;padding:0.75rem 0;border-radius:0.5rem;border:1px solid var(--border);background:var(--bg-input);cursor:pointer;transition:all 0.15s;">
+                            <svg style="width:1.25rem;height:1.25rem;color:var(--text-secondary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            <span data-i18n="theme_system" style="font-size:0.75rem;color:var(--text-secondary);">跟随系统</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 背景图片 -->
+                <div>
+                    <label data-i18n="bg_label" style="display:block;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">自定义背景图片</label>
+                    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                        <div style="display:flex;gap:0.5rem;">
+                            <input type="text" id="bgUrl" oninput="applyBgFromUrl()" style="flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:0.5rem;padding:0.625rem;font-size:0.875rem;color:var(--text-primary);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'">
+                            <label style="cursor:pointer;background:var(--bg-input);border:1px solid var(--border);color:var(--text-secondary);font-size:0.875rem;padding:0 0.75rem;border-radius:0.5rem;display:flex;align-items:center;gap:0.25rem;transition:all 0.2s;" onmouseenter="this.style.borderColor='var(--border-hover)'" onmouseleave="this.style.borderColor='var(--border)'">
+                                <svg style="width:1rem;height:1rem;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                <span data-i18n="bg_upload">上传</span>
+                                <input type="file" id="bgFile" accept="image/*" style="display:none;" onchange="applyBgFromFile()">
+                            </label>
+                        </div>
+                        <div id="bgPreview" style="display:none;position:relative;border-radius:0.5rem;overflow:hidden;border:1px solid var(--border);height:6rem;background:var(--bg-input);">
+                            <img id="bgPreviewImg" style="width:100%;height:100%;object-fit:cover;" src="" alt="">
+                            <button onclick="clearBg()" style="position:absolute;top:0.25rem;right:0.25rem;width:1.5rem;height:1.5rem;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.75rem;transition:background 0.2s;" onmouseenter="this.style.background='#dc2626'" onmouseleave="this.style.background='rgba(0,0,0,0.6)'">
+                                <svg style="width:0.75rem;height:0.75rem;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <p data-i18n="bg_hint" style="font-size:0.6875rem;color:var(--text-muted);">留空则使用默认纯色背景</p>
+                    </div>
+                </div>
+
+                <hr style="border:none;border-top:1px solid var(--border);">
+
+                <!-- AI 模型配置 -->
+                <div>
+                    <label data-i18n="ai_label" style="display:block;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem;">AI 模型配置</label>
+                    <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                        <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                            <label data-i18n="ai_preset" style="font-size:0.75rem;color:var(--text-secondary);">模型预设</label>
+                            <select id="modelPreset" onchange="handlePresetChange()" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:0.5rem;padding:0.625rem;color:var(--text-primary);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'">
+                                <option value="deepseek-r1">DeepSeek-R1 <span data-i18n="preset_official"></span></option>
+                                <option value="gpt-4o">OpenAI GPT-4o <span data-i18n="preset_official"></span></option>
+                                <option value="gpt-4o-mini">OpenAI GPT-4o-mini <span data-i18n="preset_official"></span></option>
+                                <option value="custom" data-i18n="preset_custom">自定义输入 (Custom API)</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                            <label style="font-size:0.75rem;color:var(--text-secondary);">API Key <span data-i18n="api_key_hint" style="color:var(--text-muted);">(本地运行，绝不上传)</span></label>
+                            <input type="password" id="apiKey" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:0.5rem;padding:0.625rem;color:var(--text-primary);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'" placeholder="sk-...">
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                            <label data-i18n="ai_baseurl" style="font-size:0.75rem;color:var(--text-secondary);">API 接口地址 (Base URL)</label>
+                            <input type="text" id="baseUrl" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:0.5rem;padding:0.625rem;color:var(--text-primary);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'" placeholder="https://api.openai.com/v1">
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                            <label data-i18n="ai_modelname" style="font-size:0.75rem;color:var(--text-secondary);">模型名称 (Model Name)</label>
+                            <input type="text" id="modelName" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:0.5rem;padding:0.625rem;color:var(--text-primary);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'" placeholder="gpt-4o">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding-top:0.25rem;">
+                    <button data-i18n="save_close" onclick="closeSettings()" style="width:100%;background:#2563eb;color:white;font-weight:600;padding:0.625rem;border-radius:0.5rem;border:none;cursor:pointer;transition:background 0.2s;" onmouseenter="this.style.background='#1d4ed8'" onmouseleave="this.style.background='#2563eb'">保存并关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="max-width:56rem;width:100%;display:flex;flex-direction:column;gap:1.5rem;">
+        <div style="text-align:center;">
+            <h1 style="font-size:2.25rem;font-weight:800;background:linear-gradient(to right,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Skill Prompt</h1>
+            <p data-i18n="subtitle" style="color:var(--text-secondary);margin-top:0.5rem;">将你的大白话需求，一键锻造成高纯度的本地 Agent 技能提示词</p>
+        </div>
+
+        <div style="background:var(--bg-card);padding:1.5rem;border-radius:0.75rem;box-shadow:var(--shadow);border:1px solid var(--border);">
+            <label data-i18n="input_label" style="display:block;font-size:0.875rem;font-weight:500;color:var(--text-secondary);margin-bottom:0.5rem;">请描述你想要的 Skill 需求功能：</label>
+            <div style="position:relative;">
+                <textarea id="inputReq" rows="4" oninput="hideTypingHint()" onfocus="hideTypingHint()" onblur="showTypingHint()" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:0.5rem;padding:0.75rem;color:var(--text-primary);outline:none;resize:vertical;font-family:inherit;transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#3b82f6'" onmouseleave="if(document.activeElement!==this)this.style.borderColor='var(--border)'"></textarea>
+                <div id="typingHint" style="position:absolute;top:0.75rem;left:0.75rem;pointer-events:none;font-size:0.875rem;color:var(--text-muted);display:flex;align-items:center;">
+                    <span id="typingText"></span><span id="typingCursor" style="margin-left:1px;color:var(--text-secondary);">|</span>
+                </div>
+            </div>
+            <div id="btnRow" style="margin-top:1rem;display:flex;gap:0.5rem;">
+                <button data-i18n="stop" id="stopBtn" onclick="stopGeneration()" style="display:none;flex-shrink:0;background:#ef4444;color:white;font-weight:700;padding:0.75rem 1.25rem;border-radius:0.5rem;border:none;cursor:pointer;font-size:1rem;transition:background 0.2s;white-space:nowrap;" onmouseenter="this.style.background='#dc2626'" onmouseleave="this.style.background='#ef4444'">停止</button>
+                <button id="sendBtn" onclick="generateSkillPrompt()" style="flex:1;background:linear-gradient(to right,#3b82f6,#10b981);color:white;font-weight:700;padding:0.75rem 1rem;border-radius:0.5rem;border:none;cursor:pointer;display:flex;justify-content:center;align-items:center;transition:opacity 0.2s;font-size:1rem;" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='1'">
+                    <span id="sendBtnText" data-i18n="start">开始孵化 Meta-Prompt 提示词</span>
+                    <span id="loadingSpinner" style="display:none;margin-left:0.5rem;font-size:1.25em;line-height:0;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><rect width="7.33" height="7.33" x="1" y="1" fill="#fff"><animate id="SVGzjrPLenI" attributeName="x" begin="0;SVGXAURnSRI.end+0.27s" dur="0.81s" values="1;4;1" /><animate attributeName="y" begin="0;SVGXAURnSRI.end+0.27s" dur="0.81s" values="1;4;1" /><animate attributeName="width" begin="0;SVGXAURnSRI.end+0.27s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="0;SVGXAURnSRI.end+0.27s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="8.33" y="1" fill="#fff"><animate attributeName="x" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="8.33;11.33;8.33" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="1;4;1" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="1" y="8.33" fill="#fff"><animate attributeName="x" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="1;4;1" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="8.33;11.33;8.33" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.135s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="15.66" y="1" fill="#fff"><animate attributeName="x" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="15.66;18.66;15.66" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="1;4;1" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="8.33" y="8.33" fill="#fff"><animate attributeName="x" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="8.33;11.33;8.33" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="8.33;11.33;8.33" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="1" y="15.66" fill="#fff"><animate attributeName="x" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="1;4;1" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="15.66;18.66;15.66" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.27s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="15.66" y="8.33" fill="#fff"><animate attributeName="x" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="15.66;18.66;15.66" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="8.33;11.33;8.33" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="8.33" y="15.66" fill="#fff"><animate attributeName="x" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="8.33;11.33;8.33" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="15.66;18.66;15.66" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.405s" dur="0.81s" values="7.33;1.33;7.33" /></rect><rect width="7.33" height="7.33" x="15.66" y="15.66" fill="#fff"><animate id="SVGXAURnSRI" attributeName="x" begin="SVGzjrPLenI.begin+0.54s" dur="0.81s" values="15.66;18.66;15.66" /><animate attributeName="y" begin="SVGzjrPLenI.begin+0.54s" dur="0.81s" values="15.66;18.66;15.66" /><animate attributeName="width" begin="SVGzjrPLenI.begin+0.54s" dur="0.81s" values="7.33;1.33;7.33" /><animate attributeName="height" begin="SVGzjrPLenI.begin+0.54s" dur="0.81s" values="7.33;1.33;7.33" /></rect></svg></span>
+                </button>
+            </div>
+        </div>
+
+        <div id="outputContainer" style="display:none;background:var(--bg-card);padding:1.5rem;border-radius:0.75rem;box-shadow:var(--shadow);border:1px solid var(--border);position:relative;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                <span data-i18n="success" style="font-size:0.875rem;font-weight:600;color:var(--text-success);">提示词孵化成功！请一键复制：</span>
+                <button id="copyBtn" onclick="copyToClipboard()" style="background:#2563eb;border:none;color:white;font-size:0.75rem;font-weight:700;padding:0.375rem 1rem;border-radius:0.25rem;cursor:pointer;transition:all 0.2s;min-width:4.5rem;" onmouseenter="this.style.background='#3b82f6'" onmouseleave="if(!this._copied)this.style.background='#2563eb'" data-i18n="copy">一键复制</button>
+            </div>
+            <pre id="outputText" style="white-space:pre-wrap;background:var(--bg-input);padding:1rem;border-radius:0.5rem;font-size:0.875rem;font-family:monospace;color:var(--text-secondary);border:1px solid var(--border);overflow-x:auto;"></pre>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_API = '/api/generate-prompt';
+        const body = document.getElementById('appBody');
+        const html = document.documentElement;
+
+        // ── 翻译字典 ──
+        const i18n = {
+            zh: {
+                settings: '设置',
+                lang_label: '语言',
+                theme_label: '主题外观',
+                theme_dark: '深色',
+                theme_light: '浅色',
+                theme_system: '跟随系统',
+                bg_label: '自定义背景图片',
+                bg_upload: '上传',
+                bg_placeholder: '粘贴图片链接...',
+                bg_hint: '留空则使用默认纯色背景',
+                ai_label: 'AI 模型配置',
+                ai_preset: '模型预设',
+                preset_official: '(官方预设)',
+                preset_custom: '自定义输入 (Custom API)',
+                api_key_hint: '(本地运行，绝不上传)',
+                ai_baseurl: 'API 接口地址 (Base URL)',
+                ai_modelname: '模型名称 (Model Name)',
+                save_close: '保存并关闭',
+                subtitle: '将你的大白话需求，一键锻造成高纯度的本地 Agent 技能提示词',
+                input_label: '请描述你想要的 Skill 需求功能：',
+                stop: '停止',
+                start: '开始孵化 Meta-Prompt 提示词',
+                generating: '正在生成中...',
+                success: '提示词孵化成功！请一键复制：',
+                copy: '一键复制',
+                copied: '已复制',
+                err_apikey: '请先在设置中输入您的 API Key！',
+                err_input: '请先输入您的 Skill 需求描述！',
+                err_model: '请先在设置中填写模型名称！',
+                err_fail: '生成失败: ',
+                err_backend: '请求后端失败，请确保本地已启动 FastAPI 后端服务（127.0.0.1:8000）！',
+                preset_ph_url: '请输入自定义 API 基础路径',
+                preset_ph_model: '请输入自定义模型名称'
+            },
+            en: {
+                settings: 'Settings',
+                lang_label: 'Language',
+                theme_label: 'Theme',
+                theme_dark: 'Dark',
+                theme_light: 'Light',
+                theme_system: 'System',
+                bg_label: 'Custom Background',
+                bg_upload: 'Upload',
+                bg_placeholder: 'Paste image URL...',
+                bg_hint: 'Leave empty to use default solid background',
+                ai_label: 'AI Model Config',
+                ai_preset: 'Model Preset',
+                preset_official: '(Official)',
+                preset_custom: 'Custom Input (Custom API)',
+                api_key_hint: '(Local only, never uploaded)',
+                ai_baseurl: 'API Endpoint (Base URL)',
+                ai_modelname: 'Model Name',
+                save_close: 'Save & Close',
+                subtitle: 'Turn your plain-language requirements into high-purity local Agent skill prompts',
+                input_label: 'Describe the Skill you want:',
+                stop: 'Stop',
+                start: 'Generate Meta-Prompt',
+                generating: 'Generating...',
+                success: 'Prompt generated! Copy below:',
+                copy: 'Copy',
+                copied: 'Copied',
+                err_apikey: 'Please enter your API Key in Settings first!',
+                err_input: 'Please describe your Skill requirement first!',
+                err_model: 'Please fill in the Model Name in Settings first!',
+                err_fail: 'Generation failed: ',
+                err_backend: 'Cannot reach backend. Make sure FastAPI is running on 127.0.0.1:8000!',
+                preset_ph_url: 'Enter custom API base URL',
+                preset_ph_model: 'Enter custom model name'
+            }
+        };
+
+        const typingExamples = {
+            zh: [
+                '我想要一个能自动扫描代码里硬编码的 API Key，然后抽取到 .env 文件的技能',
+                '帮我写一个 Skill，能把 Markdown 文档自动转成精美的 PPT 幻灯片',
+                '做一个能分析 Git 提交记录，自动生成每周工作报告的技能',
+                '需要一个 Skill，读取数据库 Schema 后自动生成完整的 REST API 代码',
+                '帮我创建一个技能，能对比两张 UI 设计稿并列出所有差异点',
+                '想要一个能自动把英文技术文档翻译成中文，同时保留代码块不翻译的技能',
+                '做一个 Skill，扫描项目中所有 TODO 注释并按优先级整理成任务清单',
+                '需要一个能根据用户故事自动生成端到端测试用例的技能',
+                '帮我写一个 Skill，能把 Figma 设计稿直接转成响应式的 HTML/CSS 代码',
+                '创建一个技能，自动分析日志文件找出异常模式并生成告警报告'
+            ],
+            en: [
+                'A skill that scans my codebase for hardcoded API Keys and extracts them into .env files',
+                'A Skill that converts Markdown documents into polished PowerPoint slides automatically',
+                'A skill that analyzes Git commit history and generates weekly work reports',
+                'A Skill that reads database schemas and auto-generates complete REST API code',
+                'A skill that compares two UI design mockups and lists all visual differences',
+                'A skill that translates English technical docs to Chinese while preserving code blocks',
+                'A Skill that scans all TODO comments and organizes them into a prioritized task list',
+                'A skill that auto-generates end-to-end test cases from user stories',
+                'A Skill that converts Figma designs directly into responsive HTML/CSS code',
+                'A skill that analyzes log files to detect anomaly patterns and generate alert reports'
+            ]
+        };
+
+        let currentLang = 'zh';
+        let typingIndex = 0, charIndex = 0, isDeletingTyping = false, typingTimer = null;
+
+        // ── 语言切换 ──
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+            applyLang(lang);
+            document.querySelectorAll('#langZh,#langEn').forEach(b => b.classList.remove('active'));
+            document.getElementById(lang === 'zh' ? 'langZh' : 'langEn').classList.add('active');
+        }
+
+        function applyLang(lang) {
+            const t = i18n[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) el.textContent = t[key];
+            });
+            document.getElementById('bgUrl').placeholder = t.bg_placeholder;
+            document.getElementById('baseUrl').placeholder = 'https://api.openai.com/v1';
+            document.getElementById('modelName').placeholder = 'gpt-4o';
+            if (!document.getElementById('modelPreset').value || document.getElementById('modelPreset').value === 'custom') {
+                document.getElementById('baseUrl').placeholder = t.preset_ph_url;
+                document.getElementById('modelName').placeholder = t.preset_ph_model;
+            }
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.title = 'Skill Prompt';
+            clearTimeout(typingTimer);
+            charIndex = 0;
+            isDeletingTyping = false;
+            typingIndex = 0;
+            document.getElementById('typingText').textContent = '';
+            runTypingAnimation();
+            if (document.getElementById('sendBtn').disabled) {
+                document.getElementById('sendBtnText').textContent = t.generating;
+            }
+        }
+
+        function t(key) { return i18n[currentLang][key]; }
+
+        // ── 主题切换 ──
+        function setTheme(theme) {
+            localStorage.setItem('theme', theme);
+            applyTheme(theme);
+            updateThemeButtons(theme);
+        }
+        function applyTheme(theme) {
+            const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            html.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
+        function updateThemeButtons(theme) {
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('theme' + theme.charAt(0).toUpperCase() + theme.slice(1));
+            if (btn) btn.classList.add('active');
+            const langBtn = document.getElementById(currentLang === 'zh' ? 'langZh' : 'langEn');
+            if (langBtn) langBtn.classList.add('active');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (localStorage.getItem('theme') === 'system') applyTheme('system');
+        });
+
+        // ── 背景图片 ──
+        function applyBgFromUrl() {
+            const url = document.getElementById('bgUrl').value.trim();
+            if (url) {
+                body.style.backgroundImage = 'url(' + url + ')';
+                body.classList.add('bg-custom');
+                document.getElementById('bgPreviewImg').src = url;
+                document.getElementById('bgPreview').style.display = 'block';
+                localStorage.setItem('bgUrl', url);
+            } else { clearBg(); }
+        }
+        function applyBgFromFile() {
+            const file = document.getElementById('bgFile').files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                body.style.backgroundImage = 'url(' + dataUrl + ')';
+                body.classList.add('bg-custom');
+                document.getElementById('bgPreviewImg').src = dataUrl;
+                document.getElementById('bgPreview').style.display = 'block';
+                document.getElementById('bgUrl').value = '';
+                try { localStorage.setItem('bgImage', dataUrl); localStorage.removeItem('bgUrl'); } catch(ex) {}
+            };
+            reader.readAsDataURL(file);
+        }
+        function clearBg() {
+            body.style.backgroundImage = '';
+            body.classList.remove('bg-custom');
+            document.getElementById('bgPreview').style.display = 'none';
+            document.getElementById('bgPreviewImg').src = '';
+            document.getElementById('bgUrl').value = '';
+            document.getElementById('bgFile').value = '';
+            localStorage.removeItem('bgUrl');
+            localStorage.removeItem('bgImage');
+        }
+
+        // ── 模型预设 ──
+        function handlePresetChange() {
+            const preset = document.getElementById('modelPreset').value;
+            const baseUrlInput = document.getElementById('baseUrl');
+            const modelNameInput = document.getElementById('modelName');
+            const presets = {
+                'deepseek-r1': ['https://api.deepseek.com', 'deepseek-reasoner'],
+                'gpt-4o': ['https://api.openai.com/v1', 'gpt-4o'],
+                'gpt-4o-mini': ['https://api.openai.com/v1', 'gpt-4o-mini']
+            };
+            if (presets[preset]) {
+                baseUrlInput.value = presets[preset][0];
+                modelNameInput.value = presets[preset][1];
+            } else {
+                baseUrlInput.value = '';
+                modelNameInput.value = '';
+                baseUrlInput.placeholder = t('preset_ph_url');
+                modelNameInput.placeholder = t('preset_ph_model');
+            }
+            saveSettings();
+        }
+
+        // ── 设置面板 ──
+        function saveSettings() {
+            localStorage.setItem('apiKey', document.getElementById('apiKey').value);
+            localStorage.setItem('baseUrl', document.getElementById('baseUrl').value);
+            localStorage.setItem('modelName', document.getElementById('modelName').value);
+            localStorage.setItem('modelPreset', document.getElementById('modelPreset').value);
+        }
+        function openSettings() {
+            document.getElementById('settingsOverlay').classList.add('open');
+            document.getElementById('settingsPanel').classList.add('open');
+        }
+        function closeSettings(e) {
+            if (e && e.target !== document.getElementById('settingsOverlay')) return;
+            saveSettings();
+            document.getElementById('settingsOverlay').classList.remove('open');
+            document.getElementById('settingsPanel').classList.remove('open');
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
+
+        // ── 生成提示词 ──
+        let abortController = null;
+
+        function setLoading(loading) {
+            const sendBtn = document.getElementById('sendBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const spinner = document.getElementById('loadingSpinner');
+            const btnText = document.getElementById('sendBtnText');
+            if (loading) {
+                sendBtn.disabled = true;
+                sendBtn.style.cursor = 'not-allowed';
+                spinner.style.display = 'inline-block';
+                stopBtn.style.display = 'block';
+                btnText.textContent = t('generating');
+            } else {
+                sendBtn.disabled = false;
+                sendBtn.style.cursor = 'pointer';
+                spinner.style.display = 'none';
+                stopBtn.style.display = 'none';
+                btnText.textContent = t('start');
+                abortController = null;
+            }
+        }
+
+        function stopGeneration() { if (abortController) abortController.abort(); }
+
+        async function generateSkillPrompt() {
+            const reqText = document.getElementById('inputReq').value;
+            const preset = document.getElementById('modelPreset').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const baseUrl = document.getElementById('baseUrl').value;
+            const modelName = document.getElementById('modelName').value;
+            const outputContainer = document.getElementById('outputContainer');
+            const outputText = document.getElementById('outputText');
+
+            if (!apiKey.trim()) { openSettings(); return alert(t('err_apikey')); }
+            if (!reqText.trim()) return alert(t('err_input'));
+            if (!modelName.trim()) { openSettings(); return alert(t('err_model')); }
+
+            abortController = new AbortController();
+            setLoading(true);
+            try {
+                const response = await fetch(BACKEND_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requirement: reqText, config: { provider: preset, api_key: apiKey, base_url: baseUrl, model_name: modelName }, lang: currentLang }),
+                    signal: abortController.signal
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    outputText.innerText = data.prompt;
+                    outputContainer.style.display = 'block';
+                    outputContainer.scrollIntoView({ behavior: 'smooth' });
+                } else { alert(t('err_fail') + (data.detail || '')); }
+            } catch (error) {
+                if (error.name !== 'AbortError') alert(t('err_backend'));
+            } finally { setLoading(false); }
+        }
+
+        function copyToClipboard() {
+            const btn = document.getElementById('copyBtn');
+            navigator.clipboard.writeText(document.getElementById('outputText').innerText).then(() => {
+                btn._copied = true;
+                btn.textContent = t('copied');
+                btn.style.background = '#10b981';
+                setTimeout(() => {
+                    btn.textContent = t('copy');
+                    btn.style.background = '#2563eb';
+                    btn._copied = false;
+                }, 1500);
+            });
+        }
+
+        // ── 打字动画 ──
+        function hideTypingHint() {
+            const hint = document.getElementById('typingHint');
+            const input = document.getElementById('inputReq');
+            if (hint) hint.style.display = input.value.trim() ? 'none' : 'flex';
+        }
+        function showTypingHint() {
+            const hint = document.getElementById('typingHint');
+            const input = document.getElementById('inputReq');
+            if (hint && !input.value.trim()) hint.style.display = 'flex';
+        }
+        function runTypingAnimation() {
+            const textEl = document.getElementById('typingText');
+            const input = document.getElementById('inputReq');
+            if (!textEl) return;
+            if (input.value.trim()) {
+                textEl.textContent = '';
+                typingTimer = setTimeout(runTypingAnimation, 500);
+                return;
+            }
+            const examples = typingExamples[currentLang];
+            const current = examples[typingIndex];
+            if (!isDeletingTyping) {
+                charIndex++;
+                textEl.textContent = current.slice(0, charIndex);
+                if (charIndex >= current.length) {
+                    typingTimer = setTimeout(() => { isDeletingTyping = true; runTypingAnimation(); }, 2000);
+                    return;
+                }
+                typingTimer = setTimeout(runTypingAnimation, 40 + Math.random() * 40);
+            } else {
+                charIndex--;
+                textEl.textContent = current.slice(0, charIndex);
+                if (charIndex <= 0) {
+                    isDeletingTyping = false;
+                    typingIndex = (typingIndex + 1) % examples.length;
+                    typingTimer = setTimeout(runTypingAnimation, 300);
+                    return;
+                }
+                typingTimer = setTimeout(runTypingAnimation, 20);
+            }
+        }
+        setInterval(() => {
+            const cursorEl = document.getElementById('typingCursor');
+            if (cursorEl) cursorEl.style.opacity = cursorEl.style.opacity === '0' ? '1' : '0';
+        }, 530);
+
+        // ── 初始化 ──
+        window.onload = () => {
+            const savedLang = localStorage.getItem('lang') || 'zh';
+            currentLang = savedLang;
+            applyLang(savedLang);
+            document.querySelectorAll('#langZh,#langEn').forEach(b => b.classList.remove('active'));
+            document.getElementById(savedLang === 'zh' ? 'langZh' : 'langEn').classList.add('active');
+
+            runTypingAnimation();
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            applyTheme(savedTheme);
+            updateThemeButtons(savedTheme);
+
+            const savedBgUrl = localStorage.getItem('bgUrl');
+            const savedBgImg = localStorage.getItem('bgImage');
+            if (savedBgUrl) {
+                document.getElementById('bgUrl').value = savedBgUrl;
+                applyBgFromUrl();
+            } else if (savedBgImg) {
+                body.style.backgroundImage = 'url(' + savedBgImg + ')';
+                body.classList.add('bg-custom');
+                document.getElementById('bgPreviewImg').src = savedBgImg;
+                document.getElementById('bgPreview').style.display = 'block';
+            }
+
+            const savedPreset = localStorage.getItem('modelPreset');
+            const savedApiKey = localStorage.getItem('apiKey');
+            const savedBaseUrl = localStorage.getItem('baseUrl');
+            const savedModelName = localStorage.getItem('modelName');
+            if (savedPreset) document.getElementById('modelPreset').value = savedPreset;
+            handlePresetChange();
+            if (savedApiKey) document.getElementById('apiKey').value = savedApiKey;
+            if (savedBaseUrl) document.getElementById('baseUrl').value = savedBaseUrl;
+            if (savedModelName) document.getElementById('modelName').value = savedModelName;
+        };
+    </script>
+</body>
+</html>
